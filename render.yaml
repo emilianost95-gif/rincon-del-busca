@@ -1,0 +1,52 @@
+# Blueprint de Render: base de datos + API + web en un solo paso.
+# Render → New → Blueprint → elegir este repo.
+databases:
+  - name: rincon-db
+    plan: basic-256mb
+    databaseName: rincon
+    user: rincon
+
+services:
+  - type: web
+    name: rincon-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build -w @rincon/api
+    # Las migraciones corren en cada deploy antes de levantar el servidor.
+    startCommand: cd apps/api && node dist/db/migrate.js && node dist/server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rincon-db
+          property: connectionString
+      - key: WEB_ORIGIN
+        sync: false # ej. https://rincondelbusca.cl
+      - key: WEB_URL
+        sync: false # URL interna o pública de la web
+      - key: REVALIDATE_SECRET
+        generateValue: true
+      - key: BUSINESS_TZ
+        value: America/Santiago
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+    disk:
+      name: uploads
+      mountPath: /var/data
+      sizeGB: 1
+
+  - type: web
+    name: rincon-web
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build -w @rincon/web
+    startCommand: npm run start -w @rincon/web
+    envVars:
+      - key: API_URL
+        sync: false # URL de rincon-api, ej. https://rincon-api.onrender.com
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: REVALIDATE_SECRET
+        sync: false # copiar el mismo valor generado en rincon-api

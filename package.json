@@ -1,0 +1,24 @@
+{
+  "name": "rincon-del-busca",
+  "private": true,
+  "version": "1.0.0",
+  "description": "El Rincón del Busca — landing comercial + sistema de gestión de inventario",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @rincon/api & npm run dev -w @rincon/web",
+    "dev:api": "npm run dev -w @rincon/api",
+    "dev:web": "npm run dev -w @rincon/web",
+    "build": "npm run build -w @rincon/api && npm run build -w @rincon/web",
+    "db:generate": "npm run db:generate -w @rincon/api",
+    "db:migrate": "npm run db:migrate -w @rincon/api",
+    "db:seed": "npm run db:seed -w @rincon/api",
+    "test": "npm run test -w @rincon/api",
+    "typecheck": "npm run typecheck -w @rincon/shared && npm run typecheck -w @rincon/api && npm run typecheck -w @rincon/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
