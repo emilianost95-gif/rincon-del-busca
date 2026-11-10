@@ -37,8 +37,8 @@ export default function InventoryPage() {
         actions={
           <>
             <Can perm="reports:read">
-              <a href={`/api/admin/reports/export/movements.csv?${exportQs}`} className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-3.5 text-[14px] font-medium ring-1 ring-linea hover:ring-gondola/40">
-                <Download className="size-4" /> Exportar CSV
+              <a href={`/api/admin/reports/export/movements.xlsx?${exportQs}`} className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-3.5 text-[14px] font-medium ring-1 ring-linea hover:ring-gondola/40">
+                <Download className="size-4" /> Exportar Excel
               </a>
             </Can>
             <Can perm="stock:write">

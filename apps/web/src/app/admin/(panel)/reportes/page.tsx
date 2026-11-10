@@ -10,9 +10,9 @@ import { useSession } from '@/components/admin/session';
 type Row = { category: string; color: string; products: number; units: number; cost: number; retail: number; low: number; out: number };
 
 const EXPORTS = [
-  { href: '/api/admin/reports/export/products.csv', title: 'Catálogo e inventario', text: 'Todos los productos con costo, precio, margen, stock y estado.' },
-  { href: '/api/admin/reports/export/low-stock.csv', title: 'Lista de reposición', text: 'Agotados y bajo mínimo, con cantidad sugerida y contacto del proveedor.' },
-  { href: '/api/admin/reports/export/movements.csv', title: 'Movimientos de stock', text: 'Historial completo de entradas, salidas y ajustes con usuario y nota.' },
+  { name: 'products', title: 'Catálogo e inventario', text: 'Todos los productos con costo, precio, margen, stock y estado. Se puede editar y volver a importar.' },
+  { name: 'low-stock', title: 'Lista de reposición', text: 'Agotados y bajo mínimo, con cantidad sugerida y contacto del proveedor.' },
+  { name: 'movements', title: 'Movimientos de stock', text: 'Historial completo de entradas, salidas y ajustes con precio, usuario y nota.' },
 ];
 
 export default function ReportsPage() {
@@ -23,17 +23,25 @@ export default function ReportsPage() {
 
   return (
     <>
-      <PageHeader title="Reportes" description="Valorización del inventario por categoría y exportaciones en CSV (se abren directo en Excel o Google Sheets)." />
+      <PageHeader title="Reportes" description="Valorización del inventario por categoría y exportaciones en Excel o CSV. Para ver qué productos concentran las ventas, usá Análisis ABC." />
       <div className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           {EXPORTS.map((e) => (
-            <a key={e.href} href={e.href} className="group flex gap-3 rounded-lg bg-white p-4 ring-1 ring-linea transition-shadow hover:ring-gondola/40">
+            <div key={e.name} className="flex gap-3 rounded-lg bg-white p-4 ring-1 ring-linea">
               <FileSpreadsheet className="size-5 shrink-0 text-gondola" />
               <div className="flex-1">
-                <p className="flex items-center justify-between font-medium">{e.title}<Download className="size-4 text-gris group-hover:text-gondola" /></p>
+                <p className="font-medium">{e.title}</p>
                 <p className="mt-1 text-[13px] text-gris">{e.text}</p>
+                <div className="mt-3 flex gap-2">
+                  <a href={`/api/admin/reports/export/${e.name}.xlsx`} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-gondola px-2.5 text-[13px] font-medium text-white hover:bg-gondola-soft">
+                    <Download className="size-3.5" /> Excel
+                  </a>
+                  <a href={`/api/admin/reports/export/${e.name}.csv`} className="inline-flex h-8 items-center rounded-md px-2.5 text-[13px] font-medium ring-1 ring-linea hover:ring-gondola/40">
+                    CSV
+                  </a>
+                </div>
               </div>
-            </a>
+            </div>
           ))}
         </div>
 

@@ -16,7 +16,7 @@ const TYPES: { value: MType; icon: React.ComponentType<{ className?: string }>; 
   { value: 'LOSS', icon: Trash2, help: 'Roto, vencido o perdido.' },
 ];
 
-export type MovementTarget = Pick<ProductDTO, 'id' | 'name' | 'stock' | 'unit'>;
+export type MovementTarget = Pick<ProductDTO, 'id' | 'name' | 'stock' | 'unit'> & { salePrice?: number };
 
 export function MovementModal({
   open,
@@ -38,6 +38,7 @@ export function MovementModal({
   const [note, setNote] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [unitCost, setUnitCost] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -54,6 +55,7 @@ export function MovementModal({
     setNote('');
     setSupplierId('');
     setUnitCost('');
+    setUnitPrice('');
     setErrors({});
     setSearch('');
     api<SupplierDTO[]>('/admin/suppliers').then(setSuppliers).catch(() => setSuppliers([]));
@@ -88,6 +90,7 @@ export function MovementModal({
       note,
       supplierId: type === 'IN' && supplierId ? supplierId : null,
       unitCost: type === 'IN' && unitCost ? unitCost : null,
+      unitPrice: type === 'OUT' && unitPrice ? unitPrice : null,
     });
     if (!parsed.success) {
       setErrors(Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), i.message])));
@@ -182,6 +185,12 @@ export function MovementModal({
             <Input id={id} aria-describedby={d} inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} invalid={!!errors.quantity || (preview !== null && preview < 0)} />
           )}
         </Field>
+
+        {type === 'OUT' && (
+          <Field label="Precio de venta unitario" error={errors.unitPrice} hint={`Vacío = precio vigente${product?.salePrice ? ` (${product.salePrice})` : ''}. Se usa en el análisis de facturación.`}>
+            {(id, d) => <Input id={id} aria-describedby={d} inputMode="numeric" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} invalid={!!errors.unitPrice} />}
+          </Field>
+        )}
 
         {type === 'IN' && (
           <div className="grid gap-4 sm:grid-cols-2">

@@ -50,6 +50,7 @@ export async function listMovements(where: SQL | undefined, limit: number, offse
     previousStock: Number(r.previousStock),
     resultingStock: Number(r.resultingStock),
     unitCost: r.unitCost,
+    unitPrice: r.unitPrice,
     note: r.note,
     userName,
     supplierName,

@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import {
   Activity,
   BadgePercent,
+  ChartColumnDecreasing,
+  FileUp,
   Bell,
   Boxes,
   DollarSign,
@@ -41,6 +43,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: React.Co
       { href: '/admin/categorias', label: 'Categorías', icon: Tags, perm: 'catalog:read' },
       { href: '/admin/precios', label: 'Precios', icon: DollarSign, perm: 'prices:write' },
       { href: '/admin/promociones', label: 'Promociones', icon: BadgePercent, perm: 'catalog:read' },
+      { href: '/admin/importar', label: 'Importar Excel', icon: FileUp, perm: 'catalog:write' },
     ],
   },
   {
@@ -48,6 +51,7 @@ const NAV: { group: string; items: { href: string; label: string; icon: React.Co
     items: [
       { href: '/admin/inventario', label: 'Movimientos', icon: Boxes, perm: 'catalog:read' },
       { href: '/admin/proveedores', label: 'Proveedores', icon: Truck, perm: 'catalog:read' },
+      { href: '/admin/pareto', label: 'Análisis ABC', icon: ChartColumnDecreasing, perm: 'reports:read' },
       { href: '/admin/reportes', label: 'Reportes', icon: FileBarChart, perm: 'reports:read' },
     ],
   },

@@ -11,6 +11,8 @@ export interface MovementRequest {
   quantity: number;
   supplierId?: string | null;
   unitCost?: number | null;
+  /** Precio de venta real; si no viene, en salidas se registra el precio vigente. */
+  unitPrice?: number | null;
   note?: string | null;
   userId: string | null;
   /** Sólo para cargas históricas internas (seed/importación). */
@@ -49,6 +51,7 @@ export async function applyMovement(req: MovementRequest, tx?: Tx) {
         id: schema.products.id,
         name: schema.products.name,
         stock: schema.products.stock,
+        salePrice: schema.products.salePrice,
         archivedAt: schema.products.archivedAt,
       })
       .from(schema.products)
@@ -84,6 +87,7 @@ export async function applyMovement(req: MovementRequest, tx?: Tx) {
         previousStock: previous,
         resultingStock: resulting,
         unitCost: req.unitCost ?? null,
+        unitPrice: req.type === 'OUT' ? (req.unitPrice ?? product.salePrice) : (req.unitPrice ?? null),
         supplierId: req.supplierId ?? null,
         note: req.note ?? null,
         userId: req.userId,

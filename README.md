@@ -3,7 +3,7 @@
 Plataforma de dos módulos para un comercio de barrio (bazar, limpieza, almacén, hogar):
 
 - **Web pública** (`apps/web`): landing, catálogo con buscador y filtros, ficha de producto, contacto por WhatsApp, ubicación y horarios.
-- **Panel administrativo** (`/admin`): productos, inventario con movimientos, precios (individuales y masivos), categorías, proveedores, promociones, alertas, reportes CSV, usuarios con roles y configuración del negocio.
+- **Panel administrativo** (`/admin`): productos, inventario con movimientos, precios (individuales y masivos), categorías, proveedores, promociones, alertas, **análisis de Pareto/ABC**, **importación inteligente desde Excel**, reportes en Excel/CSV, usuarios con roles y configuración del negocio.
 
 El catálogo público **se alimenta del panel**: lo que se edita ahí se publica en la web al instante.
 
@@ -77,7 +77,7 @@ npm run dev            # API en :4000, web en :3000
 
 ```bash
 createdb rincon_test
-npm test   # 22 tests de integración contra PostgreSQL real
+npm test   # 32 tests de integración contra PostgreSQL real
 ```
 
 Cubren: login y sesión, permisos por rol, CSRF, último dueño, stock negativo, **10 ventas concurrentes sobre 5 unidades**, ajustes por conteo, decimales (kg), consistencia saldo = suma de movimientos, historial de precios, precios masivos (vista previa vs. aplicar), catálogo público sin datos sensibles, búsqueda sin tildes, promociones vigentes, validación por campo y exportación CSV.
@@ -104,6 +104,29 @@ Cubren: login y sesión, permisos por rol, CSRF, último dueño, stock negativo,
 Alternativa: web en Vercel + API y base en Render/Railway/Neon. Las imágenes subidas se guardan en disco (`UPLOAD_DIR`); para escalar conviene moverlas a un almacenamiento de objetos (S3/R2), cambiando sólo `routes/uploads.ts`.
 
 ---
+
+## Importación desde Excel
+
+`/admin/importar` — pensada para comercios que llevan todo en planillas.
+
+- **Formatos**: .xlsx, .xls (Excel 97-2003), .xlsm, .xlsb, .ods, .csv, .tsv, .txt. Los CSV se decodifican como UTF-8 o, si no corresponde, Windows-1252 (lo que exporta Excel en Windows).
+- **La planilla se lee en el navegador** (SheetJS, cargado sólo en esa pantalla); al servidor viajan únicamente las filas ya normalizadas.
+- **Detección automática**: fila de encabezados (aunque haya títulos arriba), columnas por sinónimos y tolerancia a errores (“Descripción”, “P. Venta”, “PVP”, “Existencia”, “Rubro”, “Cód. barra”…) confirmadas por el tipo de contenido; separador decimal por columna (`$1.590`, `1.590,50`, `1,590.50`, `14,5 kg`); códigos de barras guardados como número; filas de TOTAL; varias hojas con el nombre de la hoja como categoría.
+- **Coincidencias**: SKU → código de barras → nombre sin tildes. Categorías y proveedores se asocian por parecido (“Limpiesa” → Limpieza) o se crean.
+- **Vista previa obligatoria** con el detalle campo por campo, advertencias (precio que cambia más de 50 %, costo mayor al precio) y descarga en Excel de las filas a corregir.
+- **Aplicación atómica**: una transacción con la tabla de productos bloqueada; inserciones por lotes de 500; el stock cambia con movimientos (`INITIAL`, `ADJUST` o `IN` según la opción elegida) y los precios quedan en el historial. Cada importación queda registrada.
+- **Memoria**: el mapeo de columnas de cada planilla se recuerda para la próxima vez.
+- La exportación de productos usa los mismos encabezados: exportar → editar en Excel → importar.
+
+> SheetJS se instala desde `@e965/xlsx` (republicación en npm de la versión oficial 0.20.3, sin dependencias). Para usar el paquete del CDN oficial reemplazar la dependencia por `"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"` y los imports por `xlsx`.
+
+## Análisis de Pareto (ABC)
+
+`/admin/pareto` — ordena los productos por **facturación**, **unidades vendidas** o **capital inmovilizado** (stock × costo) en el período elegido, dibuja el diagrama con la curva acumulada y clasifica: **A** hasta el 80 % del acumulado, **B** hasta el 95 %, **C** el resto y los productos sin movimiento.
+
+- La facturación usa el **precio real de cada venta** (`stock_movements.unit_price`, que se registra en cada salida; la migración `0001` completa las ventas anteriores con el precio vigente).
+- Sugiere subir el stock mínimo de los productos A a 7 días de venta promedio y lo aplica en un clic.
+- Exportable a Excel/CSV.
 
 ## ¿Gestión local o con usuarios?
 

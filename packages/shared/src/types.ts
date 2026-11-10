@@ -96,6 +96,7 @@ export interface MovementDTO {
   previousStock: number;
   resultingStock: number;
   unitCost: number | null;
+  unitPrice: number | null;
   note: string | null;
   userName: string | null;
   supplierName: string | null;
@@ -161,4 +162,37 @@ export interface AuditDTO {
   summary: string;
   userName: string | null;
   createdAt: string;
+}
+
+export type ParetoMetric = 'units' | 'revenue' | 'inventory';
+
+export interface ParetoItem {
+  id: string;
+  name: string;
+  category: string;
+  color: string;
+  unit: Unit;
+  /** Valor según el criterio elegido (unidades, $ facturados o $ inmovilizados). */
+  value: number;
+  units: number;
+  revenue: number;
+  share: number;
+  cumulative: number;
+  abc: 'A' | 'B' | 'C';
+  stock: number;
+  minStock: number;
+  /** Stock mínimo sugerido (7 días de venta promedio) para productos A con mínimo bajo. */
+  suggestedMinStock: number | null;
+}
+
+export interface ParetoDTO {
+  metric: ParetoMetric;
+  from: string;
+  to: string;
+  days: number;
+  total: number;
+  productCount: number;
+  withoutMovement: number;
+  summary: Record<'A' | 'B' | 'C', { count: number; share: number }>;
+  items: ParetoItem[];
 }

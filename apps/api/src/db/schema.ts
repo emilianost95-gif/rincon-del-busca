@@ -125,6 +125,10 @@ export const stockMovements = pgTable(
     previousStock: qty('previous_stock').notNull(),
     resultingStock: qty('resulting_stock').notNull(),
     unitCost: integer('unit_cost'),
+    /** Precio de venta al momento de la salida: base del análisis de facturación. */
+    unitPrice: integer('unit_price'),
+    /** Lote de importación que generó el movimiento (si vino de un Excel). */
+    importBatchId: uuid('import_batch_id'),
     supplierId: uuid('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
     note: text('note'),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
@@ -185,3 +189,14 @@ export const auditLogs = pgTable(
   },
   (t) => [index('audit_created_idx').on(t.createdAt)],
 );
+
+/** Historial de importaciones desde planillas. */
+export const importBatches = pgTable('import_batches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  fileName: text('file_name').notNull(),
+  sheets: text('sheets').notNull().default(''),
+  options: jsonb('options'),
+  stats: jsonb('stats').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

@@ -59,8 +59,8 @@ export default function AlertsPage() {
         description="Productos agotados o en su stock mínimo. Lo sugerido a reponer lleva el stock al doble del mínimo."
         actions={
           <Can perm="reports:read">
-            <a href="/api/admin/reports/export/low-stock.csv" className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-3.5 text-[14px] font-medium ring-1 ring-linea hover:ring-gondola/40">
-              <Download className="size-4" /> Lista de reposición (CSV)
+            <a href="/api/admin/reports/export/low-stock.xlsx" className="inline-flex h-10 items-center gap-2 rounded-md bg-white px-3.5 text-[14px] font-medium ring-1 ring-linea hover:ring-gondola/40">
+              <Download className="size-4" /> Lista de reposición (Excel)
             </a>
           </Can>
         }

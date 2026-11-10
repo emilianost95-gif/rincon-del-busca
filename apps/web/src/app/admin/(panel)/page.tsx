@@ -125,7 +125,10 @@ export default function DashboardPage() {
           </div>
 
           {data.topOutProducts.length > 0 && (
-            <Panel title="Más vendidos en los últimos 30 días">
+            <Panel
+              title="Más vendidos en los últimos 30 días"
+              actions={<Can perm="reports:read"><Link href="/admin/pareto" className="text-[13px] font-medium text-gondola hover:underline">Análisis ABC</Link></Can>}
+            >
               <BarList items={data.topOutProducts.map((p) => ({ label: p.name, value: p.quantity }))} format={(n) => `${formatQty(n)} un.`} />
             </Panel>
           )}

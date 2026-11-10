@@ -13,6 +13,7 @@ import { movementsRouter, pricesRouter } from './routes/inventory';
 import { auditRouter, dashboardRouter, promotionsRouter, settingsRouter } from './routes/business';
 import { reportsRouter } from './routes/reports';
 import { uploadDir, uploadsRouter } from './routes/uploads';
+import { importRouter } from './routes/import';
 import { pool } from './db';
 
 export function createApp() {
@@ -21,7 +22,10 @@ export function createApp() {
   app.disable('x-powered-by');
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
-  app.use(express.json({ limit: '200kb' }));
+  // JSON chico para todo, salvo la importación de planillas (miles de filas).
+  const smallJson = express.json({ limit: '200kb' });
+  const importJson = express.json({ limit: '15mb' });
+  app.use((req, res, next) => (req.path.startsWith('/admin/import') ? importJson : smallJson)(req, res, next));
   app.use(cookieParser());
 
   app.get('/health', async (_req, res) => {
@@ -56,6 +60,7 @@ export function createApp() {
   admin.use('/reports', reportsRouter);
   admin.use('/audit', auditRouter);
   admin.use('/uploads', uploadsRouter);
+  admin.use('/import', importRouter);
   app.use('/admin', admin);
 
   app.use(notFoundHandler);

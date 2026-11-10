@@ -160,6 +160,8 @@ export const movementSchema = z
     quantity,
     supplierId: z.string().uuid().nullable().optional(),
     unitCost: money.optional().nullable(),
+    /** Precio al que se vendió (sólo salidas). Por defecto, el precio vigente. */
+    unitPrice: money.optional().nullable(),
     note: optionalText(300),
   })
   .refine((m) => m.type === 'ADJUST' || m.quantity > 0, {
