@@ -132,8 +132,7 @@ Alternativa: web en Vercel + API y base en Render/Railway/Neon. Las imágenes su
 
 **Recomendación: con usuarios y servidor (como está implementado), empezando con una sola cuenta de Dueño.**
 
-| Criterio | Local (localStorage/IndexedDB, como el Gestor) | Servidor + usuarios (este proyecto) |
-|---|---|---|
+
 | Alimentar la web pública | ❌ Los datos viven en un navegador; la web no puede leerlos | ✅ El catálogo sale de la misma base |
 | Varios dispositivos (PC del mostrador + celular del dueño) | ❌ Cada equipo tiene su copia | ✅ Todos ven lo mismo |
 | Empleados | ❌ Cualquiera que abra el equipo puede cambiar precios | ✅ Roles: el empleado registra ventas pero no toca precios |
