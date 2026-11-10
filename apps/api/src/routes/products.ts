@@ -169,7 +169,8 @@ productsRouter.delete('/:id', requirePermission('catalog:write'), async (req, re
   const id = String(req.params.id);
   const [row] = await db
     .update(p)
-    .set({ archivedAt: new Date(), isPublished: false, isFeatured: false, sku: null, updatedAt: new Date() })
+    // El SKU se conserva (es único sólo entre activos): el historial sigue mostrando el código.
+    .set({ archivedAt: new Date(), isPublished: false, isFeatured: false, updatedAt: new Date() })
     .where(eq(p.id, id))
     .returning();
   if (!row) throw notFound('Producto');

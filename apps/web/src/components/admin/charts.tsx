@@ -13,7 +13,7 @@ export function MovementsChart({ data }: { data: { date: string; inQty: number; 
   const H = 180;
   const slot = W / data.length;
   const bw = Math.min(14, slot / 3);
-  const fmtDay = (s: string) => new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(s));
+  const fmtDay = (s: string) => new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(s));
   const active = hover !== null ? data[hover] : null;
 
   return (

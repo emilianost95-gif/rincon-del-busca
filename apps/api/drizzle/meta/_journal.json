@@ -15,6 +15,13 @@
       "when": 1794331214382,
       "tag": "0001_sale_price_and_imports",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794337969401,
+      "tag": "0002_robustez_idempotencia",
+      "breakpoints": true
     }
   ]
 }

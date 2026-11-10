@@ -1,4 +1,4 @@
-import { isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   formatQty,
   normalizeText,
@@ -28,16 +28,48 @@ interface State {
   categories: Named[];
   suppliers: Named[];
   slugs: Set<string>;
+  /** Nombres (normalizados) de productos demo, sólo para avisar en la vista previa. */
+  demoNames: Set<string>;
+  /** SKUs que ocupan productos demo (el SKU es único entre productos activos). */
+  demoSkus: Set<string>;
 }
 
 async function loadState(t: Tx | typeof db): Promise<State> {
-  const [products, categories, suppliers, slugRows] = await Promise.all([
-    t.select().from(schema.products).where(isNull(schema.products.archivedAt)),
-    t.select({ id: schema.categories.id, name: schema.categories.name }).from(schema.categories),
-    t.select({ id: schema.suppliers.id, name: schema.suppliers.name }).from(schema.suppliers),
-    t.select({ slug: schema.products.slug }).from(schema.products),
-  ]);
-  return { products, categories, suppliers, slugs: new Set(slugRows.map((r) => r.slug)) };
+  const queries = [
+    // Los productos de demostración NO participan de las coincidencias: una planilla real
+    // nunca se mezcla con datos demo (si no, "Eliminar datos demo" borraría datos reales).
+    () => t.select().from(schema.products).where(and(isNull(schema.products.archivedAt), eq(schema.products.isDemo, false))),
+    () => t.select({ id: schema.categories.id, name: schema.categories.name }).from(schema.categories),
+    () => t.select({ id: schema.suppliers.id, name: schema.suppliers.name }).from(schema.suppliers),
+    () => t.select({ slug: schema.products.slug }).from(schema.products),
+    () =>
+      t
+        .select({ name: schema.products.name, sku: schema.products.sku })
+        .from(schema.products)
+        .where(and(isNull(schema.products.archivedAt), eq(schema.products.isDemo, true))),
+  ] as const;
+  // Dentro de una transacción hay UNA conexión: las consultas van en serie
+  // (pg desaconseja consultas simultáneas sobre el mismo cliente). Fuera, en paralelo.
+  const run = t === db ? await Promise.all(queries.map((q) => q())) : await (async () => {
+    const out: unknown[] = [];
+    for (const q of queries) out.push(await q());
+    return out;
+  })();
+  const [products, categories, suppliers, slugRows, demoRows] = run as [
+    ProductRow[],
+    Named[],
+    Named[],
+    { slug: string }[],
+    { name: string; sku: string | null }[],
+  ];
+  return {
+    products,
+    categories,
+    suppliers,
+    slugs: new Set(slugRows.map((r) => r.slug)),
+    demoNames: new Set(demoRows.map((r) => normalizeText(r.name))),
+    demoSkus: new Set(demoRows.flatMap((r) => (r.sku ? [r.sku.toLowerCase()] : []))),
+  };
 }
 
 /** Busca por nombre exacto (sin tildes) y si no, por parecido (errores de tipeo). */
@@ -211,6 +243,10 @@ export function buildPlan(state: State, req: ImportRequest) {
       }
     }
 
+    if (r.sku && state.demoSkus.has(r.sku.toLowerCase()) && r.sku.toLowerCase() !== existing?.sku?.toLowerCase()) {
+      errors.push(`El SKU "${r.sku}" lo usa un producto de demostración: eliminá los datos demo antes de importar`);
+    }
+
     if (errors.length) continue;
 
     const categoryKey = r.category !== null ? resolveCategory(r.category, warnings) : undefined;
@@ -224,6 +260,9 @@ export function buildPlan(state: State, req: ImportRequest) {
       const salePrice = r.salePrice !== null ? Math.round(r.salePrice) : 0;
       if (r.salePrice === null) warnings.push('Sin precio de venta: se publica como "Consultá el precio"');
       if (r.costPrice !== null && r.salePrice !== null && r.costPrice > r.salePrice) warnings.push('El costo es mayor que el precio de venta');
+      if (state.demoNames.has(normalizeText(r.name))) {
+        warnings.push('Hay un producto de demostración con este nombre: se crea uno real aparte y el demo se borra con "Eliminar datos demo"');
+      }
       plan.data = {
         name: r.name,
         sku: r.sku,
@@ -363,8 +402,8 @@ export async function previewImport(req: ImportRequest) {
  * mientras dura (nadie puede vender ni editar a la mitad de una importación),
  * recalcula el plan sobre el estado real y escribe por lotes.
  */
-export async function applyImport(req: ImportRequest, userId: string) {
-  const out = await db.transaction(async (tx) => {
+export async function applyImport(req: ImportRequest, userId: string, outer?: Tx) {
+  const work = async (tx: Tx) => {
     await tx.execute(sql`lock table products in share row exclusive mode`);
     const state = await loadState(tx);
     const { plans, preview, newCategories, newSuppliers } = buildPlan(state, req);
@@ -514,7 +553,10 @@ export async function applyImport(req: ImportRequest, userId: string) {
       tx,
     );
     return { batchId: batch!.id, preview };
-  });
+  };
+  // Con transacción externa (idempotencia), quien la abre avisa a la web al confirmar.
+  if (outer) return work(outer);
+  const out = await db.transaction(work);
   revalidateCatalog();
   return out;
 }

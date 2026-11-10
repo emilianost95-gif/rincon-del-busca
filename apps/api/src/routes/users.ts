@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { and, asc, count, eq, ne } from 'drizzle-orm';
+import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
 import { ROLE_LABELS, userCreateSchema, userUpdateSchema } from '@rincon/shared';
 import { db, schema } from '../db';
 import { conflict, HttpError, notFound } from '../lib/http';
@@ -84,6 +84,17 @@ usersRouter.delete('/:id', async (req, res) => {
   const [current] = await db.select().from(schema.users).where(eq(schema.users.id, id));
   if (!current) throw notFound('Usuario');
   if (current.role === 'OWNER') await assertKeepsAnOwner(id);
+  // Quien registró movimientos, precios o importaciones no se borra: se perdería
+  // la trazabilidad de "quién hizo qué". Para quitarle el acceso, se desactiva.
+  const [activity] = await db.execute<{ n: number }>(sql`
+    select (
+      (select count(*) from stock_movements where user_id = ${id}) +
+      (select count(*) from price_changes where user_id = ${id}) +
+      (select count(*) from import_batches where user_id = ${id})
+    )::int as n`).then((r) => r.rows);
+  if ((activity?.n ?? 0) > 0) {
+    throw conflict('Este usuario tiene actividad registrada. Desactivalo en lugar de eliminarlo: así se conserva el historial.');
+  }
   await db.delete(schema.users).where(eq(schema.users.id, id));
   await audit({ userId: req.user!.id, action: 'user.delete', entity: 'user', entityId: id, summary: `Eliminó el usuario ${current.name}` });
   res.status(204).end();

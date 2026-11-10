@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowRight, Calculator } from 'lucide-react';
 import { bulkPriceSchema, formatMoney, type CategoryDTO, type SupplierDTO } from '@rincon/shared';
-import { api, ApiError, useResource } from '@/lib/client';
+import { api, ApiError, newIdempotencyKey, useResource } from '@/lib/client';
 import { Badge, Button, EmptyState, Field, Input, PageHeader, Panel, Select, Table, Td, Th, useFeedback } from '@/components/admin/ui';
 import { useSession } from '@/components/admin/session';
 
@@ -24,6 +24,8 @@ export default function PricesPage() {
   const [rounding, setRounding] = useState('10');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<{ count: number; changes: Change[] } | null>(null);
+  /** Una clave por vista previa: un "+10 %" no se aplica dos veces por un doble clic. */
+  const applyKey = useRef(newIdempotencyKey());
   const [busy, setBusy] = useState(false);
 
   function body() {
@@ -50,6 +52,7 @@ export default function PricesPage() {
     setBusy(true);
     try {
       setPreview(await api('/admin/prices/bulk/preview', { method: 'POST', json: parsed.data }));
+      applyKey.current = newIdempotencyKey();
     } catch (err) {
       toast((err as ApiError).message, 'error');
     } finally {
@@ -68,7 +71,12 @@ export default function PricesPage() {
     if (!ok) return;
     setBusy(true);
     try {
-      const r = await api<{ updated: number }>('/admin/prices/bulk/apply', { method: 'POST', json: parsed.data });
+      const r = await api<{ updated: number }>('/admin/prices/bulk/apply', {
+        method: 'POST',
+        json: parsed.data,
+        headers: { 'Idempotency-Key': applyKey.current },
+      });
+      applyKey.current = newIdempotencyKey();
       toast(`${r.updated} precio(s) actualizados`);
       setPreview(null);
       setValue('');

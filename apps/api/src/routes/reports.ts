@@ -57,7 +57,7 @@ function sendXlsx(res: Response, t: Table) {
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d: string | Date) =>
-  new Intl.DateTimeFormat('es-CL', { dateStyle: 'short', timeStyle: 'short', timeZone: env.BUSINESS_TZ }).format(new Date(d));
+  new Intl.DateTimeFormat('es-AR', { dateStyle: 'short', timeStyle: 'short', timeZone: env.BUSINESS_TZ }).format(new Date(d));
 
 /* ------------------------------------------------------ Tablas exportables */
 

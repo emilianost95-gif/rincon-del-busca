@@ -9,7 +9,9 @@ import {
   pgEnum,
   pgTable,
   text,
+  primaryKey,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -80,7 +82,8 @@ export const products = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     slug: text('slug').notNull().unique(),
-    sku: text('sku').unique(),
+    /** Único sólo entre productos activos: archivar conserva el código en el historial. */
+    sku: text('sku'),
     barcode: text('barcode'),
     description: text('description'),
     /** Texto normalizado (sin tildes, minúsculas) para la búsqueda pública. */
@@ -105,6 +108,7 @@ export const products = pgTable(
   (t) => [
     check('products_stock_non_negative', sql`${t.stock} >= 0`),
     check('products_prices_non_negative', sql`${t.costPrice} >= 0 AND ${t.salePrice} >= 0`),
+    uniqueIndex('products_sku_active_uq').on(t.sku).where(sql`${t.archivedAt} is null`),
     index('products_category_idx').on(t.categoryId),
     index('products_supplier_idx').on(t.supplierId),
   ],
@@ -188,6 +192,27 @@ export const auditLogs = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('audit_created_idx').on(t.createdAt)],
+);
+
+/**
+ * Claves de idempotencia: si el mismo pedido llega dos veces (doble clic,
+ * reintento por mala señal), la segunda vez se devuelve la respuesta guardada
+ * en lugar de repetir la operación. Se limpian a los 7 días.
+ */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    key: text('key').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    scope: text('scope').notNull(),
+    requestHash: text('request_hash').notNull(),
+    responseStatus: integer('response_status'),
+    responseBody: jsonb('response_body'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] }), index('idempotency_created_idx').on(t.createdAt)],
 );
 
 /** Historial de importaciones desde planillas. */
