@@ -95,13 +95,11 @@ Cubren: login y sesión, permisos por rol, CSRF, último dueño, stock negativo,
 
 ## Deploy
 
-**Opción recomendada: Render** con el blueprint `render.yaml` (PostgreSQL + API + web).
+**Render (plan gratuito, un solo servicio)** con `render.yaml`: PostgreSQL + un servicio Node que levanta la API interna y la web (`scripts/start-render.sh`). En el primer arranque aplica migraciones y, si la base está vacía, carga los datos demo y crea el Dueño con `OWNER_EMAIL`/`OWNER_PASSWORD`.
 
-1. Subir el repo a GitHub.
-2. Render → *New → Blueprint* → elegir el repo.
-3. Completar las variables marcadas `sync: false` (`WEB_ORIGIN`, `WEB_URL`, `API_URL`, `NEXT_PUBLIC_SITE_URL`) y copiar el `REVALIDATE_SECRET` generado en la API a la web.
-4. En la shell de `rincon-api`: `OWNER_EMAIL=… OWNER_PASSWORD=… node dist/db/create-owner.js`.
-5. Entrar a `/admin/configuracion` y cargar WhatsApp, dirección, horarios y fotos.
+- Build: `npm run build:render` · Start: `npm run start:render`
+- Variables: `DATABASE_URL`, `DATABASE_SSL=false` (red interna), `NODE_ENV=production`, `WEB_ORIGIN` y `NEXT_PUBLIC_SITE_URL` (URL pública), `REVALIDATE_SECRET`, `OWNER_EMAIL`, `OWNER_PASSWORD`, opcional `DEMO_STAFF_PASSWORD`, `SEED_DEMO=false` para no cargar demo.
+- Plan gratuito: el servicio se duerme tras 15 min sin visitas (la primera carga tarda ~1 min), las imágenes subidas no persisten entre deploys y la base gratuita expira a los 30 días. Para el cliente final: planes pagos y almacenamiento de objetos para imágenes.
 
 Alternativa: web en Vercel + API y base en Render/Railway/Neon. Las imágenes subidas se guardan en disco (`UPLOAD_DIR`); para escalar conviene moverlas a un almacenamiento de objetos (S3/R2), cambiando sólo `routes/uploads.ts`.
 

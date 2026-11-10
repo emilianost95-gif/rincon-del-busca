@@ -75,7 +75,9 @@ async function seed() {
 
   // Dueño inicial
   const email = (process.env.OWNER_EMAIL ?? 'dueno@rincondelbusca.local').toLowerCase();
-  const password = process.env.OWNER_PASSWORD ?? 'CambiarEsta123';
+  const isProd = process.env.NODE_ENV === 'production';
+  const password = process.env.OWNER_PASSWORD ?? (isProd ? '' : 'CambiarEsta123');
+  if (password.length < 10) throw new Error('En producción definí OWNER_PASSWORD (mínimo 10 caracteres)');
   const [owner] = await db
     .insert(schema.users)
     .values({ name: process.env.OWNER_NAME ?? 'Dueño', email, role: 'OWNER', passwordHash: await hashPassword(password) })
@@ -83,11 +85,15 @@ async function seed() {
     .returning();
   const ownerId = owner?.id ?? (await db.select().from(schema.users).where(eq(schema.users.email, email)))[0]!.id;
 
-  // Usuario de demostración con permisos de empleado, para mostrar los roles
-  await db
-    .insert(schema.users)
-    .values({ name: 'Empleado (demo)', email: 'empleado@rincondelbusca.local', role: 'STAFF', passwordHash: await hashPassword('Empleado12345') })
-    .onConflictDoNothing();
+  // Usuario de demostración con permisos de empleado, para mostrar los roles.
+  // En producción sólo se crea si se define DEMO_STAFF_PASSWORD.
+  const staffPassword = process.env.DEMO_STAFF_PASSWORD ?? (isProd ? null : 'Empleado12345');
+  if (staffPassword) {
+    await db
+      .insert(schema.users)
+      .values({ name: 'Empleado (demo)', email: 'empleado@rincondelbusca.local', role: 'STAFF', passwordHash: await hashPassword(staffPassword) })
+      .onConflictDoNothing();
+  }
 
   await saveSettings(DEFAULT_SETTINGS);
 
@@ -204,7 +210,7 @@ async function seed() {
 
   console.log(`✔ Seed DEMO listo: ${created.length} productos, ${cats.length} categorías.`);
   console.log(`  Dueño: ${email} / ${password === 'CambiarEsta123' ? 'CambiarEsta123 (cambiala)' : '(la de OWNER_PASSWORD)'}`);
-  console.log('  Empleado demo: empleado@rincondelbusca.local / Empleado12345');
+  if (staffPassword) console.log('  Empleado demo: empleado@rincondelbusca.local');
 }
 
 function mulberry32(a: number) {

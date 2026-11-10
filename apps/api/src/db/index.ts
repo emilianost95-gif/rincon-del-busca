@@ -6,7 +6,11 @@ import { env } from '../env';
 export const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   max: 10,
-  ssl: env.isProd && !env.DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : undefined,
+  // DATABASE_SSL=false para conexiones internas (ej. red privada de Render).
+  ssl:
+    process.env.DATABASE_SSL === 'false' || !env.isProd || env.DATABASE_URL.includes('localhost')
+      ? undefined
+      : { rejectUnauthorized: false },
 });
 
 export const db = drizzle(pool, { schema });

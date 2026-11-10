@@ -1,20 +1,21 @@
-# Blueprint de Render: base de datos + API + web en un solo paso.
-# Render → New → Blueprint → elegir este repo.
+# Blueprint de Render. Un solo servicio corre la API (interna, :4000) y la web
+# (puerto público): un único arranque en frío en el plan gratuito.
+# Para producción con tráfico real conviene separarlos y usar planes pagos
+# (la base gratuita de Render expira a los 30 días).
 databases:
   - name: rincon-db
-    plan: basic-256mb
+    plan: free
     databaseName: rincon
     user: rincon
 
 services:
   - type: web
-    name: rincon-api
+    name: rincon-del-busca
     runtime: node
-    plan: starter
-    buildCommand: npm ci && npm run build -w @rincon/api
-    # Las migraciones corren en cada deploy antes de levantar el servidor.
-    startCommand: cd apps/api && node dist/db/migrate.js && node dist/server.js
-    healthCheckPath: /health
+    plan: free
+    buildCommand: npm run build:render
+    startCommand: npm run start:render
+    healthCheckPath: /robots.txt
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,31 +23,19 @@ services:
         fromDatabase:
           name: rincon-db
           property: connectionString
+      - key: DATABASE_SSL
+        value: "false"
       - key: WEB_ORIGIN
-        sync: false # ej. https://rincondelbusca.cl
-      - key: WEB_URL
-        sync: false # URL interna o pública de la web
+        sync: false # URL pública, ej. https://rincon-del-busca.onrender.com
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false # misma URL pública
       - key: REVALIDATE_SECRET
         generateValue: true
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: DEMO_STAFF_PASSWORD
+        sync: false # opcional: crea el usuario Empleado de demostración
       - key: BUSINESS_TZ
         value: America/Santiago
-      - key: UPLOAD_DIR
-        value: /var/data/uploads
-    disk:
-      name: uploads
-      mountPath: /var/data
-      sizeGB: 1
-
-  - type: web
-    name: rincon-web
-    runtime: node
-    plan: starter
-    buildCommand: npm ci && npm run build -w @rincon/web
-    startCommand: npm run start -w @rincon/web
-    envVars:
-      - key: API_URL
-        sync: false # URL de rincon-api, ej. https://rincon-api.onrender.com
-      - key: NEXT_PUBLIC_SITE_URL
-        sync: false
-      - key: REVALIDATE_SECRET
-        sync: false # copiar el mismo valor generado en rincon-api

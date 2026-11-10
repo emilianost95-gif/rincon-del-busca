@@ -16,7 +16,9 @@
     "db:migrate": "npm run db:migrate -w @rincon/api",
     "db:seed": "npm run db:seed -w @rincon/api",
     "test": "npm run test -w @rincon/api",
-    "typecheck": "npm run typecheck -w @rincon/shared && npm run typecheck -w @rincon/api && npm run typecheck -w @rincon/web"
+    "typecheck": "npm run typecheck -w @rincon/shared && npm run typecheck -w @rincon/api && npm run typecheck -w @rincon/web",
+    "build:render": "npm ci --include=dev && npm run build -w @rincon/api && npm run build -w @rincon/web",
+    "start:render": "sh scripts/start-render.sh"
   },
   "engines": {
     "node": ">=20"
