@@ -11,7 +11,7 @@ const LOCALES: Record<string, string> = {
 };
 
 export function formatMoney(value: number, currency = 'CLP'): string {
-  return new Intl.NumberFormat(LOCALES[currency] ?? 'es-CL', {
+  return new Intl.NumberFormat(LOCALES[currency] ?? 'es-AR', {
     style: 'currency',
     currency,
     maximumFractionDigits: currency === 'CLP' || currency === 'COP' ? 0 : 2,
@@ -19,7 +19,7 @@ export function formatMoney(value: number, currency = 'CLP'): string {
 }
 
 export function formatQty(value: number): string {
-  return new Intl.NumberFormat('es-CL', { maximumFractionDigits: 3 }).format(value);
+  return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 3 }).format(value);
 }
 
 export function slugify(input: string): string {

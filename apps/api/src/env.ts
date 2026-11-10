@@ -9,7 +9,7 @@ const schema = z.object({
   REVALIDATE_SECRET: z.string().default(''),
   UPLOAD_DIR: z.string().default('./uploads'),
   /** Zona horaria del local: define dónde empieza y termina cada día en los reportes. */
-  BUSINESS_TZ: z.string().default('America/Santiago'),
+  BUSINESS_TZ: z.string().default('America/Argentina/Buenos_Aires'),
 });
 
 const parsed = schema.safeParse(process.env);

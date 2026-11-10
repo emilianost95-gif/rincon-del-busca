@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { MovementType } from '@rincon/shared';
 import { db, schema, type Tx } from '../db';
 import { HttpError, notFound } from '../lib/http';
+import { getSettings } from './settings';
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
@@ -52,6 +53,8 @@ export async function applyMovement(req: MovementRequest, tx?: Tx) {
         name: schema.products.name,
         stock: schema.products.stock,
         salePrice: schema.products.salePrice,
+        costPrice: schema.products.costPrice,
+        isDemo: schema.products.isDemo,
         archivedAt: schema.products.archivedAt,
       })
       .from(schema.products)
@@ -60,6 +63,11 @@ export async function applyMovement(req: MovementRequest, tx?: Tx) {
 
     if (!product) throw notFound('Producto');
     if (product.archivedAt) throw new HttpError(409, 'archived', 'El producto está archivado');
+    // Con la demo apagada, un producto de demostración no puede recibir operaciones reales:
+    // si no, "Eliminar datos demo" se llevaría ventas o entradas verdaderas.
+    if (product.isDemo && !(await getSettings()).demoMode) {
+      throw new HttpError(409, 'demo_product', 'Es un producto de demostración y la demo está desactivada. Usá un producto real.');
+    }
 
     const previous = Number(product.stock);
     const delta = computeDelta(req.type, req.quantity, previous);
@@ -86,8 +94,11 @@ export async function applyMovement(req: MovementRequest, tx?: Tx) {
         delta,
         previousStock: previous,
         resultingStock: resulting,
-        unitCost: req.unitCost ?? null,
-        unitPrice: req.type === 'OUT' ? (req.unitPrice ?? product.salePrice) : (req.unitPrice ?? null),
+        // Costo vigente al momento (salvo entradas, donde lo informa la compra):
+        // sin esto no se puede calcular el margen bruto histórico con inflación.
+        unitCost: req.unitCost ?? (req.type === 'IN' ? null : product.costPrice),
+        // Ventas y devoluciones guardan el precio real para que la facturación cierre.
+        unitPrice: req.type === 'OUT' || req.type === 'RETURN' ? (req.unitPrice ?? product.salePrice) : (req.unitPrice ?? null),
         supplierId: req.supplierId ?? null,
         note: req.note ?? null,
         userId: req.userId,

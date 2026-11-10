@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { bulkPriceSchema, MOVEMENT_LABELS, movementSchema, MOVEMENT_TYPES, type BulkPriceInput, type MovementDTO } from '@rincon/shared';
-import { db, schema } from '../db';
+import { db, schema, type Tx } from '../db';
 import { audit, revalidateCatalog } from '../lib/audit';
 import { requirePermission } from '../lib/auth';
+import { idempotent, sendIdempotent } from '../lib/idempotency';
 import { applyMovement } from '../services/inventory';
 
 /* -------------------------------------------------------- Movimientos */
@@ -30,8 +31,8 @@ export function movementFilters(q: z.infer<typeof movementQuery>): SQL | undefin
   return conds.length ? and(...conds) : undefined;
 }
 
-export async function listMovements(where: SQL | undefined, limit: number, offset = 0): Promise<MovementDTO[]> {
-  const rows = await db
+export async function listMovements(where: SQL | undefined, limit: number, offset = 0, exec: Tx | typeof db = db): Promise<MovementDTO[]> {
+  const rows = await exec
     .select({ m, userName: schema.users.name, supplierName: schema.suppliers.name })
     .from(m)
     .leftJoin(schema.users, eq(schema.users.id, m.userId))
@@ -70,7 +71,7 @@ movementsRouter.get('/', requirePermission('catalog:read'), async (req, res) => 
 
 movementsRouter.post('/', requirePermission('stock:write'), async (req, res) => {
   const data = movementSchema.parse(req.body);
-  const movement = await db.transaction(async (tx) => {
+  const out = await idempotent(req, 'movement', async (tx) => {
     const mv = await applyMovement({ ...data, userId: req.user!.id }, tx);
     await audit(
       {
@@ -82,11 +83,11 @@ movementsRouter.post('/', requirePermission('stock:write'), async (req, res) => 
       },
       tx,
     );
-    return mv;
+    const [dto] = await listMovements(eq(m.id, mv.id), 1, 0, tx);
+    return { status: 201, body: dto };
   });
-  revalidateCatalog();
-  const [dto] = await listMovements(eq(m.id, movement.id), 1);
-  res.status(201).json(dto);
+  if (!out.replayed) revalidateCatalog();
+  sendIdempotent(res, out);
 });
 
 /* ---------------------------------------------------- Precios masivos */
@@ -99,16 +100,18 @@ function roundTo(value: number, step: number) {
   return Math.max(0, Math.round(value / step) * step);
 }
 
-async function computeBulk(input: BulkPriceInput) {
+async function computeBulk(input: BulkPriceInput, tx?: Tx) {
   const conds: SQL[] = [isNull(p.archivedAt)];
   if (input.scope === 'category') conds.push(eq(p.categoryId, input.categoryId!));
   if (input.scope === 'supplier') conds.push(eq(p.supplierId, input.supplierId!));
   if (input.scope === 'products') conds.push(inArray(p.id, input.productIds!));
-  const rows = await db
+  const query = (tx ?? db)
     .select({ id: p.id, name: p.name, salePrice: p.salePrice, costPrice: p.costPrice })
     .from(p)
     .where(and(...conds))
     .orderBy(asc(p.name));
+  // Al aplicar, las filas quedan bloqueadas: nadie edita un precio a la mitad.
+  const rows = tx ? await query.for('update') : await query;
 
   return rows
     .map((r) => {
@@ -130,13 +133,11 @@ pricesRouter.post('/bulk/preview', async (req, res) => {
 /** Aplica en una sola transacción y registra cada cambio. */
 pricesRouter.post('/bulk/apply', async (req, res) => {
   const input = bulkPriceSchema.parse(req.body);
-  const changes = await computeBulk(input);
-  if (!changes.length) {
-    res.json({ updated: 0 });
-    return;
-  }
   const field = input.target === 'sale' ? 'salePrice' : 'costPrice';
-  await db.transaction(async (tx) => {
+  // Idempotente: un "+10 %" enviado dos veces NO puede aplicarse dos veces.
+  const out = await idempotent(req, 'prices.bulk', async (tx) => {
+    const changes = await computeBulk(input, tx);
+    if (!changes.length) return { status: 200, body: { updated: 0 } };
     for (const c of changes) {
       await tx.update(p).set({ [field]: c.next, updatedAt: new Date() }).where(eq(p.id, c.id));
     }
@@ -160,7 +161,8 @@ pricesRouter.post('/bulk/apply', async (req, res) => {
       },
       tx,
     );
+    return { status: 200, body: { updated: changes.length } };
   });
-  revalidateCatalog();
-  res.json({ updated: changes.length });
+  if (!out.replayed && out.body.updated) revalidateCatalog();
+  sendIdempotent(res, out);
 });

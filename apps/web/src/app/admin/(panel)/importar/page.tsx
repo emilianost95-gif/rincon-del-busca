@@ -23,7 +23,7 @@ import {
   type ImportRow,
   type ImportRowResult,
 } from '@rincon/shared';
-import { api, ApiError, fmtRelative, useResource } from '@/lib/client';
+import { api, ApiError, fmtRelative, newIdempotencyKey, useResource } from '@/lib/client';
 import { ACCEPTED, buildRows, downloadIssues, downloadTemplate, readWorkbook, saveMapping, type ParsedWorkbook } from '@/lib/spreadsheet';
 import { Badge, Button, EmptyState, Field, PageHeader, Panel, Select, Table, Td, Th, Toggle, useFeedback } from '@/components/admin/ui';
 import { useSession } from '@/components/admin/session';
@@ -80,6 +80,8 @@ export default function ImportPage() {
   const [filter, setFilter] = useState<ImportRowResult['action'] | 'all'>('all');
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  /** Una clave por vista previa: aplicar dos veces la misma planilla no duplica stock. */
+  const applyKey = useRef(newIdempotencyKey());
   const batches = useResource<Batch[]>('/admin/import/batches');
 
   const sheets = wb?.sheets.filter((s) => selected.includes(s.name)) ?? [];
@@ -137,6 +139,7 @@ export default function ImportPage() {
       });
       sheets.forEach(saveMapping);
       setRowsSent(rows);
+      applyKey.current = newIdempotencyKey();
       setPreview(res);
       setFilter(res.summary.error ? 'error' : 'all');
       setStep('preview');
@@ -161,7 +164,9 @@ export default function ImportPage() {
       const res = await api<{ batchId: string; preview: ImportPreviewDTO }>('/admin/import/apply', {
         method: 'POST',
         json: { fileName: wb.fileName, sheets: sheets.map((x) => x.name), options, rows: rowsSent },
+        headers: { 'Idempotency-Key': applyKey.current },
       });
+      applyKey.current = newIdempotencyKey();
       setPreview(res.preview);
       setStep('done');
       batches.reload();

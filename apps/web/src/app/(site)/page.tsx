@@ -179,7 +179,7 @@ export default async function HomePage() {
             <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {promosWithProduct.map((promo, i) => {
                 const prod = promo.product!;
-                const ends = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' }).format(new Date(promo.endsAt));
+                const ends = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long' }).format(new Date(promo.endsAt));
                 return (
                   <li key={promo.id} style={{ rotate: `${[-1.5, 1, -0.5][i % 3]}deg` }}>
                     <Link href={`/catalogo/${prod.slug}`} className="block h-full bg-cartel p-6 text-tinta shadow-[0_14px_24px_-16px_rgba(60,40,10,.6)] transition-transform hover:-translate-y-1">

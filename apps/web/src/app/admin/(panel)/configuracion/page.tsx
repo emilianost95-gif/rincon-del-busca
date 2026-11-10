@@ -96,8 +96,12 @@ export default function SettingsPage() {
     });
     if (!ok) return;
     try {
-      const r = await api<{ removed: number }>('/admin/settings/clear-demo', { method: 'POST' });
-      toast(`Se eliminaron ${r.removed} productos de demostración`);
+      const r = await api<{ removed: number; kept: string[] }>('/admin/settings/clear-demo', { method: 'POST' });
+      toast(
+        r.kept.length
+          ? `Se eliminaron ${r.removed} productos de demostración. ${r.kept.length} tenían datos de una planilla y se conservaron como reales.`
+          : `Se eliminaron ${r.removed} productos de demostración`,
+      );
       reload();
     } catch (err) {
       toast((err as ApiError).message, 'error');

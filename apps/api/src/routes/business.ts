@@ -94,8 +94,35 @@ settingsRouter.put('/', requirePermission('settings:write'), async (req, res) =>
 /** Borra todos los datos marcados como DEMO (productos, promociones y sus movimientos). */
 settingsRouter.post('/clear-demo', requirePermission('settings:write'), async (req, res) => {
   const result = await db.transaction(async (tx) => {
-    const demo = await tx.select({ id: schema.products.id }).from(schema.products).where(eq(schema.products.isDemo, true));
-    const ids = demo.map((d) => d.id);
+    const demo = await tx
+      .select({ id: schema.products.id, name: schema.products.name })
+      .from(schema.products)
+      .where(eq(schema.products.isDemo, true))
+      .for('update');
+
+    // Red de seguridad: un producto demo con movimientos que vinieron de una planilla
+    // es un producto real mal marcado (bases anteriores a esta corrección). No se borra:
+    // se convierte en real y se informa.
+    const touched = demo.length
+      ? await tx
+          .selectDistinct({ id: schema.stockMovements.productId })
+          .from(schema.stockMovements)
+          .where(
+            and(
+              inArray(schema.stockMovements.productId, demo.map((d) => d.id)),
+              sql`${schema.stockMovements.importBatchId} is not null`,
+            ),
+          )
+      : [];
+    const keep = new Set(touched.map((t) => t.id));
+    const kept = demo.filter((d) => keep.has(d.id));
+    if (kept.length) {
+      await tx
+        .update(schema.products)
+        .set({ isDemo: false, updatedAt: new Date() })
+        .where(inArray(schema.products.id, kept.map((k) => k.id)));
+    }
+    const ids = demo.filter((d) => !keep.has(d.id)).map((d) => d.id);
     if (ids.length) {
       await tx.delete(schema.stockMovements).where(inArray(schema.stockMovements.productId, ids));
       await tx.delete(schema.priceChanges).where(inArray(schema.priceChanges.productId, ids));
@@ -105,11 +132,20 @@ settingsRouter.post('/clear-demo', requirePermission('settings:write'), async (r
     await tx.delete(schema.promotions).where(eq(schema.promotions.isDemo, true));
     const settings = await getSettings();
     await saveSettings({ ...settings, demoMode: false });
-    await audit({ userId: req.user!.id, action: 'demo.clear', entity: 'settings', summary: `Eliminó ${ids.length} producto(s) de demostración` }, tx);
-    return ids.length;
+    await audit(
+      {
+        userId: req.user!.id,
+        action: 'demo.clear',
+        entity: 'settings',
+        summary: `Eliminó ${ids.length} producto(s) de demostración${kept.length ? ` y conservó ${kept.length} con datos importados` : ''}`,
+        meta: kept.length ? { kept: kept.map((k) => k.name) } : undefined,
+      },
+      tx,
+    );
+    return { removed: ids.length, kept: kept.map((k) => k.name) };
   });
   revalidateCatalog();
-  res.json({ removed: result });
+  res.json(result);
 });
 
 /* ---------------------------------------------------------- Dashboard */

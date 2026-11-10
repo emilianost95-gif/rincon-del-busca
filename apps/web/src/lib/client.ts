@@ -38,6 +38,16 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
   return data as T;
 }
 
+/**
+ * Clave para una operación que no debe repetirse. Se genera una por intento
+ * lógico (al abrir el formulario o al calcular la vista previa) y se reutiliza
+ * en los reintentos: si el primer envío llegó, el servidor no lo aplica dos veces.
+ */
+export const newIdempotencyKey = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+
 /** Carga un recurso y permite recargarlo. Cancela respuestas viejas. */
 export function useResource<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
@@ -79,8 +89,8 @@ export function useDebounced<T>(value: T, ms = 300) {
 }
 
 export const fmtDateTime = (iso: string) =>
-  new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
-export const fmtDate = (iso: string) => new Intl.DateTimeFormat('es-CL', { dateStyle: 'medium' }).format(new Date(iso));
+  new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+export const fmtDate = (iso: string) => new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(iso));
 export const fmtRelative = (iso: string) => {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
   const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });

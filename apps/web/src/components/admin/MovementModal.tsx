@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine, ClipboardCheck, RotateCcw, Trash2 } from 'lucide-react';
 import { formatQty, MOVEMENT_LABELS, movementSchema, UNIT_SHORT, type ProductDTO, type SupplierDTO, type Unit } from '@rincon/shared';
-import { api, ApiError, useDebounced } from '@/lib/client';
+import { api, ApiError, newIdempotencyKey, useDebounced } from '@/lib/client';
 import { Button, Field, Input, Modal, Select, Textarea, useFeedback } from './ui';
 
 type MType = 'IN' | 'OUT' | 'ADJUST' | 'RETURN' | 'LOSS';
@@ -42,6 +42,8 @@ export function MovementModal({
   const [suppliers, setSuppliers] = useState<SupplierDTO[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  /** Una clave por apertura del formulario: un doble envío no registra dos movimientos. */
+  const opKey = useRef(newIdempotencyKey());
 
   const [search, setSearch] = useState('');
   const debounced = useDebounced(search, 250);
@@ -58,6 +60,7 @@ export function MovementModal({
     setUnitPrice('');
     setErrors({});
     setSearch('');
+    opKey.current = newIdempotencyKey();
     api<SupplierDTO[]>('/admin/suppliers').then(setSuppliers).catch(() => setSuppliers([]));
   }, [open, initial, defaultType]);
 
@@ -98,7 +101,8 @@ export function MovementModal({
     }
     setSaving(true);
     try {
-      await api('/admin/movements', { method: 'POST', json: parsed.data });
+      await api('/admin/movements', { method: 'POST', json: parsed.data, headers: { 'Idempotency-Key': opKey.current } });
+      opKey.current = newIdempotencyKey();
       toast(`${MOVEMENT_LABELS[type]} registrada: ${product.name}`);
       onDone();
       onClose();

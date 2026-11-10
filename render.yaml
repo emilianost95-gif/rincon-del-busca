@@ -37,6 +37,6 @@ services:
       - key: OWNER_EMAIL
         value: dueno@rincondelbusca.cl
       - key: BUSINESS_TZ
-        value: America/Santiago
+        value: America/Argentina/Buenos_Aires
       # OWNER_PASSWORD y DEMO_STAFF_PASSWORD se cargan desde el panel de Render
       # (nunca en el repo). Sin OWNER_PASSWORD el seed se omite.

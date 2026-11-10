@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS: SettingsInput = {
   facebook: null,
   hours: [],
   gallery: [],
-  currency: 'CLP',
+  currency: 'ARS',
   demoMode: true,
 };
 

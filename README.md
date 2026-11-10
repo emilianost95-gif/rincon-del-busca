@@ -48,7 +48,9 @@ Se tomó como base el **modelo de dominio del Gestor de Precios y Stock** (produ
 - Uploads: sólo JPG/PNG/WebP de hasta 3 MB, verificados por firma real del archivo y con nombre aleatorio.
 - Los endpoints públicos **nunca** exponen costos, proveedores ni stock exacto (sólo “disponible / quedan pocas / agotado”).
 - CSV con protección contra inyección de fórmulas en Excel.
-- Registro de auditoría de todas las acciones (*Actividad*).
+- Registro de auditoría de todas las acciones (*Actividad*). Un usuario con actividad registrada no se elimina: se desactiva.
+- **Idempotencia**: movimientos, importaciones y precios masivos aceptan `Idempotency-Key`. Un doble clic o un reintento por mala señal devuelve la respuesta original sin repetir la operación (claves por usuario, se purgan a los 7 días).
+- **Datos demo aislados**: el importador nunca coincide con productos demo, y con la demo apagada un producto demo no acepta operaciones. *Eliminar datos demo* conserva (como reales) los demo que tengan movimientos de una planilla.
 
 ---
 
@@ -77,10 +79,10 @@ npm run dev            # API en :4000, web en :3000
 
 ```bash
 createdb rincon_test
-npm test   # 32 tests de integración contra PostgreSQL real
+npm test   # 52 tests de integración contra PostgreSQL real
 ```
 
-Cubren: login y sesión, permisos por rol, CSRF, último dueño, stock negativo, **10 ventas concurrentes sobre 5 unidades**, ajustes por conteo, decimales (kg), consistencia saldo = suma de movimientos, historial de precios, precios masivos (vista previa vs. aplicar), catálogo público sin datos sensibles, búsqueda sin tildes, promociones vigentes, validación por campo y exportación CSV.
+Cubren: login y sesión, permisos por rol (incluido Solo lectura), CSRF, último dueño, stock negativo, **10 ventas concurrentes sobre 5 unidades**, ajustes por conteo, mermas y devoluciones, decimales (kg), consistencia saldo = suma de movimientos, historial de precios, precios masivos (vista previa vs. aplicar), catálogo público sin datos sensibles, búsqueda sin tildes, promociones vigentes, validación por campo, exportación CSV, **idempotencia** (doble envío y envíos simultáneos), **separación demo/real**, alertas de stock mínimo y reportes conciliados contra los movimientos.
 
 ### Scripts útiles
 
