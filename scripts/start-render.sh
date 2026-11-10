@@ -9,7 +9,10 @@ WEB_PORT="${PORT:-3000}"
 cd apps/api
 node dist/db/migrate.js
 # Carga los datos demo sólo si la base está vacía (no pisa datos existentes).
-if [ "${SEED_DEMO:-true}" = "true" ]; then node dist/db/seed.js; fi
+if [ "${SEED_DEMO:-true}" = "true" ]; then
+  if [ -n "${OWNER_PASSWORD:-}" ]; then node dist/db/seed.js || echo "[start] seed falló; sigo sin datos demo";
+  else echo "[start] OWNER_PASSWORD no definida: se omite el seed"; fi
+fi
 PORT="$API_PORT" WEB_URL="http://127.0.0.1:${WEB_PORT}" node dist/server.js &
 API_PID=$!
 cd ../..
